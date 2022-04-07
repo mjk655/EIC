@@ -1,31 +1,31 @@
 #include "PlotErrors.h"
 
-void DoAna(){
+void DoAna_NNPDF(){
     bool save = true;
     gROOT->ProcessLine(".x ~/myStyle.C");
     gStyle->SetPalette(51);
-    
-    double sys = gRandom->Gaus(0,0.04);
-    cout << ">>>>p+e: Using a systematic uncertainty of " << sys << " percent " << endl;
-    int const nvary =300;//
+
+    double sys = gRandom->Gaus(0,0.04);    
+    int const nvary =900;//
     int const nbins_q2 = 13;
     int const nbins_x  = 20;
-    TH1F *REP_WEIGHTS = new TH1F("REP_WEIGHTS","REP_WEIGHTS",nvary,0,nvary);
-    TH2F* hF2_Replica[nbins_q2][nvary];
     TH1F* chi2 = new TH1F("chi2","chi2",nvary,0,nvary);//chi2 values for re-weighting
+    TH1F *REP_WEIGHTS = new TH1F("REP_WEIGHTS","REP_WEIGHTS",nvary,0,nvary);
     double wk[nvary];
-    double rik[nvary][40];// 96 because # error sets 
+    double rik[nvary][nvary];//
     double binning_q2[nbins_q2+1];
     double binning_x[nbins_x+1];
     setXbins(nbins_x,binning_x);
     setQ2bins(nbins_q2,binning_q2);
-    TFile *partonf = new TFile("GluonWeights.root","READ");
-    TH2F* N_GLUON[152];
-    TH2F* N_GLUON_Replica[nvary];
-    TH2F* N_GLUON_Weight[97];
-    TH2F* N_GLUON_Comb[97];
+    TFile *partonf = new TFile("GluonWeights_NNPDF.root","READ");
     
-    for(int i = 0;i <152;i++){// only need 0 - 97
+    TH2F* N_GLUON[nvary+1];
+    TH2F* N_GLUON_Replica[nvary];
+    TH2F* N_GLUON_Weight[nvary+1];
+    TH2F* N_GLUON_Comb[nvary+1];
+    
+
+    for(int i = 0;i <nvary+1;i++){// only need 0 - 97
 	N_GLUON[i] = (TH2F*)partonf->Get(Form("N_GLUON_%i",i));
 	N_GLUON[i]->SetDirectory(0);
     }
@@ -41,7 +41,6 @@ void DoAna(){
     TH2F *Errors_541_eAu   = (TH2F*)f1->Get("Errors_541_eAu");Errors_541_eAu->SetDirectory(0);
     f1->Close();
     TH1F *hq2bin = new TH1F("hq2bin","hq2bin",nbins_q2,binning_q2);
-    
     for(int i = 0;i < nbins_q2+5; i++){
 	hCS_x1[i] = new TH1F(Form("hCS_x1_%i",i),Form("hCS_x1_%i",i),nbins_x,binning_x);
         hCS_x2[i] = new TH1F(Form("hCS_x2_%i",i),Form("hCS_x2_%i",i),nbins_x,binning_x);
@@ -62,9 +61,9 @@ void DoAna(){
 	hCS_x1_eAu_toy[i] = new TH2F(Form("hCS_x1_%i_eAu_toy",i),Form("hCS_x1_%i_eAu_toy",i),nbins_x,binning_x,4000,0,4);
 	hCS_x2_eAu_toy[i] = new TH2F(Form("hCS_x2_%i_eAu_toy",i),Form("hCS_x2_%i_eAu_toy",i),nbins_x,binning_x,4000,0,4);
 	hF2_x_eAu_toy[i] = new TH2F(Form("hF2_x_%i_eAu_toy",i),Form("hF2_x_%i_eAu_toy",i),nbins_x,binning_x,4000,0,4);
-	hCS_x1_eAu_toynew[i] = new TH2F(Form("hCS_x1_%i_eAu_toynew",i),Form("hCS_x1_%i_eAu_toynew",i),nbins_x,binning_x,4000,0,4);
-        hCS_x2_eAu_toynew[i] = new TH2F(Form("hCS_x2_%i_eAu_toynew",i),Form("hCS_x2_%i_eAu_toynew",i),nbins_x,binning_x,4000,0,4);
-        hF2_x_eAu_toynew[i] = new TH2F(Form("hF2_x_%i_eAu_toynew",i),Form("hF2_x_%i_eAu_toynew",i),nbins_x,binning_x,4000,0,4);
+	hCS_x1_eAu_toynew[i] = new TH2F(Form("hCS_x1_%i_eAu_toynew",i),Form("hCS_x1_%i_eAu_toynew",i),nbins_x,binning_x,40000,-.01,.01);
+        hCS_x2_eAu_toynew[i] = new TH2F(Form("hCS_x2_%i_eAu_toynew",i),Form("hCS_x2_%i_eAu_toynew",i),nbins_x,binning_x,40000,-.01,.01);
+        hF2_x_eAu_toynew[i] = new TH2F(Form("hF2_x_%i_eAu_toynew",i),Form("hF2_x_%i_eAu_toynew",i),nbins_x,binning_x,40000,-.01,.01);
     }
     cout << "===================================================================" << endl;
 //===================================================== Central values =================================================
@@ -105,20 +104,21 @@ void DoAna(){
 	for(int jj = 1;jj < nbins_x+1; jj++){
 	    double val = hF2_x_eAu[ii]->GetBinContent(jj);
 	    double er = hF2_x_eAu[ii]->GetBinError(jj);
-	    double newval = gRandom->Gaus(val,sqrt(er*er));
+	    double newval = gRandom->Gaus(val,er);
 	    newval += sys*val;
 	    hF2_x_eAu_pseudo[ii]->SetBinContent(jj,newval);
 	    hF2_x_eAu_pseudo[ii]->SetBinError(jj,hF2_x_eAu[ii]->GetBinError(jj));
 	    val = hCS_x1_eAu[ii]->GetBinContent(jj);
             er = hCS_x1_eAu[ii]->GetBinError(jj);
-            newval = gRandom->Gaus(val,sqrt(er*er));
+            newval = gRandom->Gaus(val,er);
 	    newval += sys*val;
 	    hCS_x1_eAu_pseudo[ii]->SetBinContent(jj,newval);
 	    hCS_x1_eAu_pseudo[ii]->SetBinError(jj,hCS_x1_eAu[ii]->GetBinError(jj));
 	    val = hCS_x2_eAu[ii]->GetBinContent(jj);
             er = hCS_x2_eAu[ii]->GetBinError(jj);
-            
-            hCS_x2_eAu_pseudo[ii]->SetBinContent(jj,newval);
+            newval = gRandom->Gaus(val,er);
+	    newval += sys*val;
+	    hCS_x2_eAu_pseudo[ii]->SetBinContent(jj,newval);
 	    hCS_x2_eAu_pseudo[ii]->SetBinError(jj,hCS_x2_eAu[ii]->GetBinError(jj));
 	    hF2_x_eAu_er[ii]->SetBinContent(jj,hF2_x_eAu[ii]->GetBinContent(jj));
 	    hCS_x1_eAu_er[ii]->SetBinContent(jj,hCS_x1_eAu[ii]->GetBinContent(jj));
@@ -134,8 +134,8 @@ void DoAna(){
     cout << "===================================================================" << endl;
     cout << ">> Starting Eigen PDF variation " << endl;
     int iter = 0;
-    for(int i = 1; i < 40 ; i=i+2){//40
-	cout <<">>> On " << (i+1)/2 << " out of " << "40/2" << " variations "  << endl;
+    for(int i = 1; i <nvary+1 ; i++){
+	cout <<">>> On " << i << " out of " << nvary << " variations "  << endl;
 
 	TH1F *hCS_x1_eAu_temp[nbins_q2];
         TH1F *hCS_x2_eAu_temp[nbins_q2];
@@ -147,7 +147,7 @@ void DoAna(){
             hF2_x_eAu_temp[ii] = new TH1F(Form("hF2_x_%i_eAu_temp",ii),Form("hF2_x_%i_eAu_temp",ii),nbins_x,binning_x);
         }
 	TH2F* New_N_GLUON = (TH2F*) N_GLUON[i]->Clone("New_N_GLUON");
-	getPDFError(New_N_GLUON,N_GLUON,i);
+	//getPDFError(New_N_GLUON,N_GLUON,i);
 	N_GLUON_Comb[iter] = (TH2F*) New_N_GLUON->Clone(Form("N_GLUON_Comb_%i",iter));
     
         fill("D0Tree_10100_new.root",hCS_x1,hCS_x1_eAu_temp,hq2bin,Weights_10100,Weights_10100_eAu,New_N_GLUON,1,1);
@@ -192,7 +192,6 @@ void DoAna(){
             delete temp1; delete temp2; delete temp3;
         }
     }
-
 //===================================================== nPDF Replicas ====================================================
     cout << "===================================================================" << endl;
     cout << ">> Starting Replica PDF variation " << endl;
@@ -209,8 +208,8 @@ void DoAna(){
 	    hF2_x_eAu_temp[ii] = new TH1F(Form("hF2_x_%i_eAu_temp",ii),Form("hF2_x_%i_eAu_temp",ii),nbins_x,binning_x);
 	}
 	
-	TH2F* New_N_GLUON = (TH2F*) N_GLUON[0]->Clone("New_N_GLUON"); 
-	getReplica(New_N_GLUON,N_GLUON,40,rik,i);//40 not 2
+	TH2F* New_N_GLUON = (TH2F*) N_GLUON[i+1]->Clone("New_N_GLUON"); 
+	//getReplica(New_N_GLUON,N_GLUON,40,rik,i);
 	N_GLUON_Replica[i] = (TH2F*) New_N_GLUON->Clone(Form("N_GLUON_Replica_%i",i));
 	
 	fill("D0Tree_10100_new.root",hCS_x1,hCS_x1_eAu_temp,hq2bin,Weights_10100,Weights_10100_eAu,New_N_GLUON,1,1);
@@ -229,53 +228,46 @@ void DoAna(){
 		double cen3 = hF2_x_eAu_pseudo[ii]->GetBinContent(jj);
 		double err3 = hF2_x_eAu_pseudo[ii]->GetBinError(jj);
 		if(val3>0 && cen3>0 && err3>0 && cen3<2){
-		    if(err3/cen3<0.4){
-			if(i==1)cout << "debug chi2 " << val3 << " " << cen3 << " " << err3 << " " << (val3-cen3)*(val3-cen3) /err3 /err3 << endl;
+		    if(err3/val3<0.4){//HERE
+			//if(i==1)cout << "debug chi2 " << val3 << " " << cen3 << " " << err3 << " " << (val3-cen3)*(val3-cen3) /err3 /err3 << endl;
 			_chi2 += (val3-cen3)*(val3-cen3) /err3 /err3;   
 		    }
 		}
-		//if(val1>0)hCS_x1_eAu_toy[ii]->Fill(binning_x[jj-1]+0.00000001,val1);
-                //if(val2>0)hCS_x2_eAu_toy[ii]->Fill(binning_x[jj-1]+0.00000001,val2);
-                //if(val3>0)hF2_x_eAu_toy[ii]->Fill(binning_x[jj-1]+0.00000001,val3);
-
 	    }
 	}
 	for(int ii = 0;ii < nbins_q2; ii++){
 	    delete hCS_x1_eAu_temp[ii];
 	    delete hCS_x2_eAu_temp[ii]; 
-	    hF2_Replica[ii][i] = (TH2F*)hF2_x_eAu_temp[ii]->Clone(Form("hF2_Replica_%i_%i",ii,i));
 	    delete hF2_x_eAu_temp[ii];
 	}
 	chi2->SetBinContent(i+1,_chi2);
     }
     cout << " Done with PDF varying \n" << endl;
-  
+    
     double deno = 0;
     for(int i = 0; i < nvary ; i++){
 	double _chi2 = chi2->GetBinContent(i+1);
-	//deno += TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / nvary;//chi2
-	//deno += TMath::Exp(-_chi2/2.) / nvary;//GK ///(52./1.645/1.645)
-	deno += TMath::Exp(-_chi2/2./(52./1.645/1.645)) / nvary;//GK ///(52./1.645/1.645)      
+	deno += TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / nvary;//chi2
+	//deno += TMath::Exp(-_chi2/2.) / nvary;//GK
 	//cout <<"contribution to weight sum for " << i << " replica: " << TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) << " chi2 " <<  _chi2 << endl;
 	cout <<"contribution to weight sum for " << i << " replica: " << TMath::Exp(-_chi2/2.) << " chi2 " <<  _chi2 << " sum " << deno << endl;
     }
     cout <<"calculated sum of weights (deno): " << deno << endl; 
     for(int i = 0; i < nvary ; i++){
 	double _chi2 = chi2->GetBinContent(i+1);
-	//wk[i] = TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / deno;//chi2
+	wk[i] = TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / deno;//chi2
 	//wk[i] = TMath::Exp(-_chi2/2.) / deno;//GK
-	wk[i] = TMath::Exp(-_chi2/2./(52./1.645/1.645)) / deno;//GK 
-	cout <<"calculated weights for " <<i <<"-th replica: " <<  wk[i] << endl;
 	REP_WEIGHTS->SetBinContent(i+1,wk[i]);
+	cout <<"calculated weights for " <<i <<"-th replica: " <<  wk[i] << endl;
     }
     cout << "===================================================================" << endl;
 //===================================================== New nPDF Errors on x-sec ====================================================  
     cout << "===================================================================" << endl;
     cout << ">> Starting New PDF variation " << endl;
     iter = 0;
-    double eigen_weights[40];
-    for(int i = 1; i < 40 ; i=i+2){//40
-	cout <<">>> On " << (i+1)/2 << " out of " << "40/2" << " variations " << endl;
+    double eigen_weights[1000];
+    for(int i = 1; i < nvary+1 ; i++){
+	cout <<">>> On " << i << " out of " << nvary << " variations " << endl;
         double _chi2=0;
         TH1F *hCS_x1_eAu_temp[nbins_q2];
         TH1F *hCS_x2_eAu_temp[nbins_q2];
@@ -286,12 +278,10 @@ void DoAna(){
             hCS_x2_eAu_temp[ii] = new TH1F(Form("hCS_x2_%i_eAu_temp",ii),Form("hCS_x2_%i_eAu_temp",ii),nbins_x,binning_x);
             hF2_x_eAu_temp[ii] = new TH1F(Form("hF2_x_%i_eAu_temp",ii),Form("hF2_x_%i_eAu_temp",ii),nbins_x,binning_x);
         }
-	TH2F* New_N_GLUON = (TH2F*) N_GLUON[0]->Clone("New_N_GLUON");
-	
-        eigen_weights[i-1] = getNewPDFError(New_N_GLUON,N_GLUON,i,wk,rik,nvary);
+	TH2F* New_N_GLUON = (TH2F*) N_GLUON[i]->Clone("New_N_GLUON");
+	eigen_weights[i-1] = wk[i-1];//getNewPDFError(New_N_GLUON,N_GLUON,i,wk,rik,nvary);
 	N_GLUON_Weight[iter] = (TH2F*) New_N_GLUON->Clone(Form("N_GLUON_Weight_%i",iter));
-
-        fill("D0Tree_10100_new.root",hCS_x1,hCS_x1_eAu_temp,hq2bin,Weights_10100,Weights_10100_eAu,New_N_GLUON,1,1);
+	fill("D0Tree_10100_new.root",hCS_x1,hCS_x1_eAu_temp,hq2bin,Weights_10100,Weights_10100_eAu,New_N_GLUON,1,1);
 	fill("D0Tree_541_new.root",hCS_x2,hCS_x2_eAu_temp,hq2bin,Weights_541,Weights_541_eAu,New_N_GLUON,1,1);
 	fitF2(nbins_q2,nbins_x,binning_q2,binning_x,hF2_x_eAu_temp,hCS_x1_eAu_temp,hCS_x2_eAu_temp);
 	for(int ii = 0;ii < nbins_q2-2; ii++){
@@ -299,12 +289,12 @@ void DoAna(){
             getRat(hCS_x1_eAu_temp[ii],hCS_x1[ii],1);
             getRat(hCS_x2_eAu_temp[ii],hCS_x2[ii],1);
             for(int jj = 1;jj < nbins_x+1; jj++){
-                double val1 = hCS_x1_eAu_temp[ii]->GetBinContent(jj);
-                double val2 = hCS_x2_eAu_temp[ii]->GetBinContent(jj);
-                double val3 = hF2_x_eAu_temp[ii]->GetBinContent(jj);
-		if(val1>0)hCS_x1_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,val1);
-                if(val2>0)hCS_x2_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,val2);
-                if(val3>0)hF2_x_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,val3);
+                double val1 = hCS_x1_eAu_temp[ii]->GetBinContent(jj)-hCS_x1_eAu_ernew[ii]->GetBinContent(jj);
+                double val2 = hCS_x2_eAu_temp[ii]->GetBinContent(jj)-hCS_x2_eAu_ernew[ii]->GetBinContent(jj);
+                double val3 = hF2_x_eAu_temp[ii]->GetBinContent(jj)-hF2_x_eAu_ernew[ii]->GetBinContent(jj);
+		if(val1>0)hCS_x1_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,wk[i-1]*val1*val1/nvary);
+                if(val2>0)hCS_x2_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,wk[i-1]*val2*val2/nvary);
+                if(val3>0)hF2_x_eAu_toynew[ii]->Fill(binning_x[jj-1]+0.00000001,wk[i-1]*val3*val3/nvary);
 	    }
         }
 	for(int ii = 0;ii < nbins_q2; ii++){
@@ -314,7 +304,6 @@ void DoAna(){
         }
 	iter++;
     }
-// This is unchanged
     cout << " Done with new PDF varying " << endl;
     for(int ii = 0;ii < nbins_q2-2; ii++){
         for(int jj = 1;jj < nbins_x+1; jj++){
@@ -324,9 +313,9 @@ void DoAna(){
             double c1 = hCS_x1_eAu_ernew[ii]->GetBinContent(jj);
             double c2 = hCS_x2_eAu_ernew[ii]->GetBinContent(jj);
             double c3 = hF2_x_eAu_ernew[ii]->GetBinContent(jj);
-            double er1 = getError(temp1,c1,0);
-            double er2 = getError(temp2,c2,0);
-            double er3 = getError(temp3,c3,0);
+            double er1 = getError1(temp1,c1,0);
+            double er2 = getError1(temp2,c2,0);
+            double er3 = getError1(temp3,c3,0);
 	    if(temp1->Integral()>0)hCS_x1_eAu_ernew[ii]->SetBinError(jj,er1);
             if(temp2->Integral()>0)hCS_x2_eAu_ernew[ii]->SetBinError(jj,er2);
             if(temp3->Integral()>0)hF2_x_eAu_ernew[ii]->SetBinError(jj,er3);
@@ -334,13 +323,16 @@ void DoAna(){
         }
     }
     cout << "===================================================================" << endl;
-    for(int i = 1; i < 40 ; i=i+2)cout << " >>>>> Eigen weights " << i << " " << eigen_weights[i-1] << endl;//40
+    for(int i = 1; i < nvary+1 ; i++){
+	cout << " >>>>> Eigen weights " << i << " " << eigen_weights[i-1] << endl;
+	REP_WEIGHTS->SetBinContent(i,eigen_weights[i-1]);
+    }
 //============================ This is the drawing part =======================================================
     cout << "===================================================================" << endl;
     cout << "Now entering drawing portion " << endl;
-    TH1F* True = (TH1F*)N_GLUON[0]->ProjectionX("True",3,3);
-    TH1F* Mod = (TH1F*)N_GLUON_Weight[0]->ProjectionX("Mod",3,3); 
-    TH1F* Ini = (TH1F*)N_GLUON_Comb[0]->ProjectionX("Ini",3,3);
+    TH1F* True = (TH1F*)N_GLUON[0]->ProjectionX("True",6,6);
+    TH1F* Mod = (TH1F*)N_GLUON_Weight[0]->ProjectionX("Mod",6,6); 
+    TH1F* Ini = (TH1F*)N_GLUON_Comb[0]->ProjectionX("Ini",6,6);
     cout << "> Doing gluon part " << endl;
     True->GetYaxis()->SetRangeUser(0,2);
     Ini->SetFillColor(14);
@@ -355,17 +347,17 @@ void DoAna(){
 	double sum2 = True->GetBinContent(i);
 	double sum21 = 0;
         double sum22 = 0;
-	for(int j = 0; j< 40/2; j++){//40
-            TH1F *_temp2 = (TH1F*)N_GLUON_Weight[j]->ProjectionX("_temp2",3,3);
-            TH1F *_temp1 = (TH1F*)N_GLUON_Comb[j]->ProjectionX("_temp1",3,3);
-            sum22+=(sum2 - _temp2->GetBinContent(i))*(sum2 - _temp2->GetBinContent(i));
+	for(int j = 1; j< nvary+1; j++){
+            TH1F *_temp2 = (TH1F*)N_GLUON[j]->ProjectionX("_temp2",6,6);
+            TH1F *_temp1 = (TH1F*)N_GLUON[j]->ProjectionX("_temp1",6,6);
+            sum22+= REP_WEIGHTS->GetBinContent(j)*(sum2 - _temp2->GetBinContent(i))*(sum2 - _temp2->GetBinContent(i));
             sum21+=(sum1 - _temp1->GetBinContent(i))*(sum1 - _temp1->GetBinContent(i));
 	    delete _temp1; delete _temp2;
 	}
 	Mod->SetBinContent(i,sum2);
 	Ini->SetBinContent(i,sum1);
-	Mod->SetBinError(i,sqrt(sum22));
-        Ini->SetBinError(i,sqrt(sum21));
+	Mod->SetBinError(i,sqrt(sum22/nvary));
+        Ini->SetBinError(i,sqrt(sum21/nvary));
     }
     TCanvas *c111 = new TCanvas("c111","Gluon ratio");
     True->Draw("hist same");
@@ -453,8 +445,9 @@ void DoAna(){
     */
     cout << "Done with drawing, now saving if flagged" << endl;
     if(save){
-	TFile *fout  = new TFile("results11_NewWeights_Sys_Up.root","RECREATE");
-	//TFile *fout  = new TFile("Test_Upper.root","RECREATE");
+	TFile *fout  = new TFile("results2_NewWeights_Sys.root","RECREATE");
+	REP_WEIGHTS->Write("REP_WEIGHTS");
+	chi2->Write("chi2");
 	for(int i = 0;i<nbins_q2-2;i++){
 	    hCS_x2_eAu_er[i]->Write(Form("hCS_x2_eAu_er_%i",i));
 	    hCS_x2_eAu_ernew[i]->Write(Form("hCS_x2_eAu_ernew_%i",i));
@@ -469,32 +462,15 @@ void DoAna(){
 	    hCS_x1_eAu_pseudo[i]->Write(Form("hCS_x1_eAu_%i_pseudo",i));
 	    hCS_x2_eAu_pseudo[i]->Write(Form("hCS_x2_eAu_%i_pseudo",i));
 	}
-	for(int i = 0;i<40/2;i++){//40
+	for(int i = 0;i<1000;i++){
 	    N_GLUON_Weight[i]->Write(Form("N_GLUON_Weight_%i",i));
 	    N_GLUON[i]->Write(Form("N_GLUON_%i",i));
 	    N_GLUON_Comb[i]->Write(Form("N_GLUON_Comb_%i",i));
 	}
 	for(int i = 0;i<nvary;i++){
-	
 	    N_GLUON_Replica[i]->Write(Form("N_GLUON_Replica_%i",i));
-	    for(int ii = 0;ii<nbins_q2-2;ii++)hF2_Replica[ii][i]->Write();
-
 	}
-	REP_WEIGHTS->Write("REP_WEIGHTS");
-	chi2->Write();
     }
-    double effec = 0;
-    double sumweights = 0;
-    double sumlog = 0;
-    for(int i = 0; i < nvary ; i++){
-	effec+=wk[i]*log(nvary/wk[i]);
-	sumweights+=wk[i];
-	sumlog+=log(nvary/wk[i]);
-    }
-    cout <<" effec " << effec << endl;
-    cout <<" sumweights " << sumweights << endl;
-    cout <<" sumlog " << sumlog << endl;
-
 }
 void norm(TH1F *h, char label[]){
     double norm = h->Integral();
@@ -617,7 +593,7 @@ void fill(char file1[100],TH1F** hCS_x1,TH1F** hCS_x1_eAu,TH1F* hq2bin,TH2F* Wei
 	double wwn = 1;
 	int bin_g = N_GLUON->FindBin(log10(mxtp),log10(mq2));
 	wwn = N_GLUON->GetBinContent(bin_g);
-	if(wwn<0)wwn = 0;
+	if(wwn<0)wwn=0;
 	if(vary==0)
 	    hCS_x1[bin-1]->Fill(log10(mx),ww1/ww);
 	hCS_x1_eAu[bin-1]->Fill(log10(mx),wwn*ww2*ww);
@@ -636,24 +612,22 @@ double getError(TH1F* h, double c, int debug){
 	//cout << " error here " << sqrt(val/n) << " " << h->GetBinCenter(i) << " " << h->GetBinContent(i) << " " << c << endl;
     }
 
-    return sqrt(val);
+    return sqrt(val/n);
 }
-/*
-double getError(TH1F* h, double c, int debug){
+double getError1(TH1F* h, double c, int debug){
     double val=0;int n=0;
     if(c==0)return 0;
     for(int i = 1;i<h->GetNbinsX();i++){
         if(h->GetBinContent(i)==0)continue;
         double vv = h->GetBinCenter(i);
-        val += h->GetBinContent(i)*(vv-c)*(vv-c);
+        val += h->GetBinContent(i)*(vv);
         n+=h->GetBinContent(i);
         if(debug==1) cout <<"Err calc " << c << " " << vv << " " << n << endl;
-        //cout << " error here " << sqrt(val/n) << " " << h->GetBinCenter(i) << " " << h->GetBinContent(i) << " " << c << endl;                                                                                                                                                
+        //cout << " error here " << sqrt(val/n) << " " << h->GetBinCenter(i) << " " << h->GetBinContent(i) << " " << c << endl;                                                                                                                      
     }
 
     return sqrt(val);
 }
-*/
 void getPDFError(TH2F* n, TH2F** _set,int nset){
     // nset should be 97 - 1 for EPPS16 (0 is central value,1-40 for EPS16 erros and 40-97 for CT14NLO erros)                                                                                                                                                            
     int xbins = n->GetNbinsX();
@@ -662,7 +636,7 @@ void getPDFError(TH2F* n, TH2F** _set,int nset){
         for(int y =1; y< ybins+1-8;y++){
 	    double cc = _set[0]->GetBinContent(x,y);
 	    // Even nset = S{+} and odd = S{-} and nset should always be odd
-	    double val = cc + (fabs(_set[nset+1]->GetBinContent(x,y)-cc)+fabs(_set[nset]->GetBinContent(x,y)-cc))/2.;
+	    double val = cc + ((_set[nset+1]->GetBinContent(x,y)-cc)-(_set[nset]->GetBinContent(x,y)-cc))/2.;
 	    n->SetBinContent(x,y,val);
         }
     }
@@ -671,20 +645,15 @@ void getReplica(TH2F* n, TH2F** _set,int nset, double rik[][40], int vary_iter){
     // nset should be 97 - 1 for EPPS16 (0 is central value,1-40 for EPS16 erros and 40-97 for CT14NLO erros)
     int xbins = n->GetNbinsX();
     int ybins = n->GetNbinsY();
-    for(int i = 1; i < nset ; i = i+2){
-	double ran = gRandom->Gaus(0,1);///sqrt(52./1.645/1.645);
-	rik[vary_iter][i-1] = ran;
-    }
     for(int x = 1; x< xbins+1;x++){
        	for(int y =1; y< ybins+1-8;y++){
 	    double cc = _set[0]->GetBinContent(x,y);
 	    double val = cc;//initialize with central value
 	    for(int i = 1; i < nset ; i = i+2){// odd = S{-1} even = S{+1}
-		//double ran = gRandom->Gaus(0,1);//Don't DO THIS HEREEEE!!!
-		//rik[vary_iter][i-1] = ran; 
-		double ran = rik[vary_iter][i-1];
+		double ran = gRandom->Gaus(0,1);
+		rik[vary_iter][i-1] = ran; 
 		double _val = 0;
-		_val = (fabs(_set[i+1]->GetBinContent(x,y)-cc)+fabs(_set[i]->GetBinContent(x,y) - cc))/2. * ran;
+		_val = ((_set[nset+1]->GetBinContent(x,y)-cc)-(_set[nset]->GetBinContent(x,y) - cc))/2. * ran;
 		val+=_val;
 	    }
 	    n->SetBinContent(x,y,val);
@@ -702,21 +671,17 @@ double getNewPDFError(TH2F* n, TH2F** _set,int nset, double weights[],double rik
 	double ww = weights[rep];
 	if(ran==0 || ww ==0) cout <<"MAJOR ERROR IN NEW PDF-- CHECK!!!" << endl;
 	sum+= ran * ww / nvary;
-	if(nset==1) cout << "DEBUG NSET=1 " << rep << " " << ran << " " << ww << " " << sum << endl;
     }
     
     for(int x = 1; x< xbins+1;x++){
         for(int y =1; y< ybins+1-8;y++){
             double cc = _set[0]->GetBinContent(x,y);
             double val = cc;//initialize with central value                                                                                                                                                                                        
-	    double _val = (fabs(_set[nset+1]->GetBinContent(x,y)-cc)+fabs(_set[nset]->GetBinContent(x,y) - cc))/2.;
-	    if(x==10)cout<<"  >> DEBUG UP/Low Set " <<nset << " central " <<  cc << " high " << _set[nset+1]->GetBinContent(x,y) << " low " << _set[nset]->GetBinContent(x,y) << " " << (_set[nset+1]->GetBinContent(x,y)-cc) << " " << (_set[nset]->GetBinContent(x,y) - cc ) << " " << _val << endl; 
-
+	    double _val = ((_set[nset+1]->GetBinContent(x,y)-cc)-(_set[nset]->GetBinContent(x,y) - cc))/2.;
 	    _val*=sum;
 	    val+=_val;
 	    n->SetBinContent(x,y,val);
 	}
     }
-    cout << "Weight for error " << nset << " " << sum << endl;
     return sum;
 }

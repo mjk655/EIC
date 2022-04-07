@@ -1,6 +1,6 @@
 #include "PlotErrors.h"
 
-void DoAna(){
+void DoAna_EPPS_Trunc(){
     bool save = true;
     gROOT->ProcessLine(".x ~/myStyle.C");
     gStyle->SetPalette(51);
@@ -14,6 +14,8 @@ void DoAna(){
     TH2F* hF2_Replica[nbins_q2][nvary];
     TH1F* chi2 = new TH1F("chi2","chi2",nvary,0,nvary);//chi2 values for re-weighting
     double wk[nvary];
+    int veto[nvary];
+    double thresh = 1.4;
     double rik[nvary][40];// 96 because # error sets 
     double binning_q2[nbins_q2+1];
     double binning_x[nbins_x+1];
@@ -251,19 +253,32 @@ void DoAna(){
     cout << " Done with PDF varying \n" << endl;
   
     double deno = 0;
+    double nnvary=0;
     for(int i = 0; i < nvary ; i++){
 	double _chi2 = chi2->GetBinContent(i+1);
-	//deno += TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / nvary;//chi2
+	if(_chi2/43. > thresh){
+	    veto[i] = 0;
+	    continue;//denotest
+	}
+	veto[i] = 1;
+	nnvary++;
+//deno += TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / nvary;//chi2
 	//deno += TMath::Exp(-_chi2/2.) / nvary;//GK ///(52./1.645/1.645)
-	deno += TMath::Exp(-_chi2/2./(52./1.645/1.645)) / nvary;//GK ///(52./1.645/1.645)      
+	deno += TMath::Exp(-_chi2/2./(52./1.645/1.645));// / nvary;//GK ///(52./1.645/1.645)      
 	//cout <<"contribution to weight sum for " << i << " replica: " << TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) << " chi2 " <<  _chi2 << endl;
 	cout <<"contribution to weight sum for " << i << " replica: " << TMath::Exp(-_chi2/2.) << " chi2 " <<  _chi2 << " sum " << deno << endl;
     }
+    deno *= 1./nvary;
     cout <<"calculated sum of weights (deno): " << deno << endl; 
     for(int i = 0; i < nvary ; i++){
+	if(veto[i] = 0){
+	    wk[i] = 0;
+	    continue;
+	}
 	double _chi2 = chi2->GetBinContent(i+1);
 	//wk[i] = TMath::Power(_chi2,0.5*(Npts-1)) * TMath::Exp(-_chi2/2.) / deno;//chi2
 	//wk[i] = TMath::Exp(-_chi2/2.) / deno;//GK
+	
 	wk[i] = TMath::Exp(-_chi2/2./(52./1.645/1.645)) / deno;//GK 
 	cout <<"calculated weights for " <<i <<"-th replica: " <<  wk[i] << endl;
 	REP_WEIGHTS->SetBinContent(i+1,wk[i]);
@@ -453,7 +468,7 @@ void DoAna(){
     */
     cout << "Done with drawing, now saving if flagged" << endl;
     if(save){
-	TFile *fout  = new TFile("results11_NewWeights_Sys_Up.root","RECREATE");
+	TFile *fout  = new TFile("results11_NewWeights_Sys_Trunc_1.4.root","RECREATE");
 	//TFile *fout  = new TFile("Test_Upper.root","RECREATE");
 	for(int i = 0;i<nbins_q2-2;i++){
 	    hCS_x2_eAu_er[i]->Write(Form("hCS_x2_eAu_er_%i",i));
@@ -697,14 +712,18 @@ double getNewPDFError(TH2F* n, TH2F** _set,int nset, double weights[],double rik
     int ybins = n->GetNbinsY();
 
     double sum=0;
+    double nnvary = 0 ;
     for(int rep = 0; rep<nvary; rep++){
 	double ran = rik[rep][nset-1];
 	double ww = weights[rep];
-	if(ran==0 || ww ==0) cout <<"MAJOR ERROR IN NEW PDF-- CHECK!!!" << endl;
-	sum+= ran * ww / nvary;
+	if(ww ==0){
+	    continue;
+	}
+	nnvary++;
+	sum+= ran * ww;// / nvary;
 	if(nset==1) cout << "DEBUG NSET=1 " << rep << " " << ran << " " << ww << " " << sum << endl;
     }
-    
+    sum*= 1./nnvary;
     for(int x = 1; x< xbins+1;x++){
         for(int y =1; y< ybins+1-8;y++){
             double cc = _set[0]->GetBinContent(x,y);
